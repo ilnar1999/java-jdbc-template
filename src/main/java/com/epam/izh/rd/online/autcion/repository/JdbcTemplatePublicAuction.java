@@ -23,49 +23,51 @@ public class JdbcTemplatePublicAuction implements PublicAuction {
     @Autowired
     private UserMapper userMapper;
 
+    private List<Bid> bids;
+    private List<Item> items;
+    private List<User> users;
+    private Map<User, Double> avgItemCost;
+    private Map<Item, Bid> maxBidsForEveryItem;
+
+    private int updatedRowsCount;
+
     @Override
     public List<Bid> getUserBids(long id) {
-        String query = "SELECT * FROM bids WHERE user_id = ?";
-        return jdbcTemplate.query(query, bidMapper, id);
+        return jdbcTemplate.query("SELECT * FROM bids WHERE user_id = ?", bidMapper, id);
     }
 
     @Override
     public List<Item> getUserItems(long id) {
-        String query = "SELECT * FROM items WHERE user_id = ?";
-        return jdbcTemplate.query(query, itemMapper, id);
+        return jdbcTemplate.query("SELECT * FROM items WHERE user_id = ?", itemMapper, id);
     }
 
     private List<Bid> getItemBids(long id) {
-        String query = "SELECT * FROM bids WHERE item_id = ?";
-        return jdbcTemplate.query(query, bidMapper, id);
+        return jdbcTemplate.query("SELECT * FROM bids WHERE item_id = ?", bidMapper, id);
     }
 
     @Override
     public Item getItemByName(String name) {
-        String query = "SELECT * FROM items WHERE title LIKE '%" + name + "%' LIMIT 1";
-        return jdbcTemplate.queryForObject(query, itemMapper);
+        return jdbcTemplate.queryForObject("SELECT * FROM items WHERE title LIKE '%" + name + "%' LIMIT 1", itemMapper);
     }
 
     @Override
     public Item getItemByDescription(String name) {
-        String query = "SELECT * FROM items WHERE description LIKE '%" + name + "%' LIMIT 1";
-        return jdbcTemplate.queryForObject(query, itemMapper);
+        return jdbcTemplate.queryForObject("SELECT * FROM items WHERE description LIKE '%" + name + "%' LIMIT 1", itemMapper);
     }
 
     @Override
     public Map<User, Double> getAvgItemCost() {
-        Map<User, Double> avgItemCost = new HashMap<>();
-        List<User> users = jdbcTemplate.query("SELECT * FROM users", userMapper);
-        List<Item> items;
+        avgItemCost = new HashMap<>();
+        users = jdbcTemplate.query("SELECT * FROM users", userMapper);
         double itemsCost;
-        for (User user: users) {
+        for (User user : users) {
             itemsCost = 0;
             items = getUserItems(user.getUserId());
-            for (Item item: items) {
+            for (Item item : items) {
                 itemsCost += item.getStartPrice();
             }
             if (items.size() != 0) {
-                avgItemCost.put(user, itemsCost/items.size());
+                avgItemCost.put(user, itemsCost / items.size());
             }
         }
         return avgItemCost;
@@ -73,14 +75,13 @@ public class JdbcTemplatePublicAuction implements PublicAuction {
 
     @Override
     public Map<Item, Bid> getMaxBidsForEveryItem() {
-        Map<Item, Bid> maxBidsForEveryItem = new HashMap<>();
-        List<Item> items = jdbcTemplate.query("SELECT * FROM items", itemMapper);
-        List<Bid> bids;
+        maxBidsForEveryItem = new HashMap<>();
+        items = jdbcTemplate.query("SELECT * FROM items", itemMapper);
         Bid maxBid;
-        for (Item item: items) {
+        for (Item item : items) {
             maxBid = null;
             bids = getItemBids(item.getItemId());
-            for (Bid bid: bids) {
+            for (Bid bid : bids) {
                 if (maxBid == null || bid.getBidValue() > maxBid.getBidValue()) {
                     maxBid = bid;
                 }
@@ -98,57 +99,71 @@ public class JdbcTemplatePublicAuction implements PublicAuction {
 
     @Override
     public boolean createUser(User user) {
-        List<User> existUsers = jdbcTemplate.query("SELECT * FROM users", userMapper);
-        for (User existsUser: existUsers) {
+        users = jdbcTemplate.query("SELECT * FROM users", userMapper);
+        for (User existsUser : users) {
             if (existsUser.getUserId().equals(user.getUserId())) {
                 return false;
             }
         }
-        int updatedRowsCount = jdbcTemplate.update("INSERT INTO users VALUES (?,?,?,?,?)",
-                user.getUserId(), user.getBillingAddress(), user.getFullName(), user.getLogin(), user.getPassword()
+        updatedRowsCount = jdbcTemplate.update("INSERT INTO users VALUES (?,?,?,?,?)",
+                user.getUserId(),
+                user.getBillingAddress(),
+                user.getFullName(),
+                user.getLogin(),
+                user.getPassword()
         );
         return updatedRowsCount != 0;
     }
 
     @Override
     public boolean createItem(Item item) {
-        List<Item> existItems = jdbcTemplate.query("SELECT * FROM items", itemMapper);
-        for (Item existsItem: existItems) {
+        items = jdbcTemplate.query("SELECT * FROM items", itemMapper);
+        for (Item existsItem : items) {
             if (existsItem.getItemId().equals(item.getItemId())) {
                 return false;
             }
         }
-        int updatedRowsCount = jdbcTemplate.update("INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?)",
-                item.getItemId(), item.getBidIncrement(), item.getBuyItNow(),
-                item.getDescription(), item.getStartDate(), item.getStartPrice(),
-                item.getStopDate(), item.getTitle(), item.getUserId()
+        updatedRowsCount = jdbcTemplate.update("INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?)",
+                item.getItemId(),
+                item.getBidIncrement(),
+                item.getBuyItNow(),
+                item.getDescription(),
+                item.getStartDate(),
+                item.getStartPrice(),
+                item.getStopDate(),
+                item.getTitle(),
+                item.getUserId()
         );
         return updatedRowsCount != 0;
     }
 
     @Override
     public boolean createBid(Bid bid) {
-        List<Bid> existBids = jdbcTemplate.query("SELECT * FROM bids",bidMapper);
-        for (Bid existsBid: existBids) {
+        bids = jdbcTemplate.query("SELECT * FROM bids", bidMapper);
+        for (Bid existsBid : bids) {
             if (existsBid.getBidId().equals(bid.getBidId())) {
                 return false;
             }
         }
-        int updatedRowsCount = jdbcTemplate.update("INSERT INTO bids VALUES (?,?,?,?,?)",
-                bid.getBidId(), bid.getBidDate(), bid.getBidValue(), bid.getItemId(), bid.getUserId()
+        updatedRowsCount = jdbcTemplate.update("INSERT INTO bids VALUES (?,?,?,?,?)",
+                bid.getBidId(),
+                bid.getBidDate(),
+                bid.getBidValue(),
+                bid.getItemId(),
+                bid.getUserId()
         );
         return updatedRowsCount != 0;
     }
 
     @Override
     public boolean deleteUserBids(long id) {
-        int updatedRowsCount = jdbcTemplate.update("DELETE FROM bids WHERE user_id = ?", id);
+        updatedRowsCount = jdbcTemplate.update("DELETE FROM bids WHERE user_id = ?", id);
         return updatedRowsCount != 0;
     }
 
     @Override
     public boolean doubleItemsStartPrice(long id) {
-        int updatedRowsCount = jdbcTemplate.update(
+        updatedRowsCount = jdbcTemplate.update(
                 "UPDATE items SET start_price = start_price * 2 WHERE user_id = ?", id
         );
         return updatedRowsCount != 0;
